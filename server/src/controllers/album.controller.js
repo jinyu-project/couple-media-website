@@ -1,28 +1,20 @@
-import Album from '../models/Album.model.js'
+import { albumStorage, fileStorage } from '../utils/storage.util.js'
 
 // 创建相册
 export const createAlbum = async (req, res) => {
   try {
     console.log('📁 创建相册:', req.body)
     
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接，无法创建相册'
-      })
-    }
-    
     const albumData = {
       name: req.body.name || '未命名相册',
       description: req.body.description || '',
       files: [],
-      createdBy: req.body.userId || '000000000000000000000000',
+      createdBy: req.body.userId || 'default-user',
       isPrivate: req.body.isPrivate || false,
       tags: req.body.tags || [],
     }
     
-    const album = await Album.create(albumData)
+    const album = albumStorage.create(albumData)
     console.log(`✅ 相册创建成功: ${album.name}`)
     
     res.status(201).json({
@@ -45,27 +37,31 @@ export const createAlbum = async (req, res) => {
 // 获取所有相册
 export const getAlbums = async (req, res) => {
   try {
-    // 检查MongoDB连接状态
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          albums: [],
-          total: 0
-        }
-      })
-    }
+    const albums = albumStorage.findAll()
     
-    const Album = (await import('../models/Album.model.js')).default
-    const albums = await Album.find().lean()
-    const total = await Album.countDocuments()
+    // 为每个相册获取文件详情（用于显示封面）
+    const albumsWithFiles = albums.map(album => {
+      if (album.files && album.files.length > 0) {
+        // 获取文件详情
+        const files = album.files
+          .map(fileId => fileStorage.findById(fileId))
+          .filter(Boolean)
+        return {
+          ...album,
+          files
+        }
+      }
+      return {
+        ...album,
+        files: []
+      }
+    })
     
     res.status(200).json({
       status: 'success',
       data: {
-        albums,
-        total
+        albums: albumsWithFiles,
+        total: albums.length
       }
     })
   } catch (error) {
@@ -81,18 +77,7 @@ export const getAlbums = async (req, res) => {
 // 获取相册详情
 export const getAlbumById = async (req, res) => {
   try {
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接'
-      })
-    }
-    
-    const album = await Album.findById(req.params.id)
-      .populate('files')
-      .populate('createdBy', 'name email')
-      .lean()
+    const album = albumStorage.findById(req.params.id)
     
     if (!album) {
       return res.status(404).json({
@@ -101,10 +86,16 @@ export const getAlbumById = async (req, res) => {
       })
     }
     
+    // 获取相册中的文件详情
+    const files = album.files.map(fileId => fileStorage.findById(fileId)).filter(Boolean)
+    
     res.status(200).json({
       status: 'success',
       data: {
-        album
+        album: {
+          ...album,
+          files
+        }
       }
     })
   } catch (error) {
@@ -120,19 +111,7 @@ export const getAlbumById = async (req, res) => {
 // 更新相册信息
 export const updateAlbum = async (req, res) => {
   try {
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接'
-      })
-    }
-    
-    const album = await Album.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    )
+    const album = albumStorage.update(req.params.id, req.body)
     
     if (!album) {
       return res.status(404).json({
@@ -161,15 +140,7 @@ export const updateAlbum = async (req, res) => {
 // 删除相册
 export const deleteAlbum = async (req, res) => {
   try {
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接'
-      })
-    }
-    
-    const album = await Album.findByIdAndDelete(req.params.id)
+    const album = albumStorage.findById(req.params.id)
     
     if (!album) {
       return res.status(404).json({
@@ -179,11 +150,14 @@ export const deleteAlbum = async (req, res) => {
     }
     
     // 清除文件中对该相册的引用
-    const File = (await import('../models/File.model.js')).default
-    await File.updateMany(
-      { albumId: req.params.id },
-      { $unset: { albumId: 1 } }
-    )
+    const allFiles = fileStorage.findAll()
+    allFiles.forEach(file => {
+      if (file.albumId === req.params.id) {
+        fileStorage.update(file.id, { albumId: null })
+      }
+    })
+    
+    albumStorage.delete(req.params.id)
     
     res.status(200).json({
       status: 'success',
@@ -202,15 +176,9 @@ export const deleteAlbum = async (req, res) => {
 // 向相册添加文件
 export const addFileToAlbum = async (req, res) => {
   try {
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接'
-      })
-    }
-    
     const { fileId } = req.body
+    const albumId = req.params.id
+    
     if (!fileId) {
       return res.status(400).json({
         status: 'error',
@@ -218,7 +186,9 @@ export const addFileToAlbum = async (req, res) => {
       })
     }
     
-    const album = await Album.findById(req.params.id)
+    console.log(`➕ 添加文件 ${fileId} 到相册 ${albumId}`)
+    
+    const album = albumStorage.findById(albumId)
     if (!album) {
       return res.status(404).json({
         status: 'error',
@@ -226,19 +196,35 @@ export const addFileToAlbum = async (req, res) => {
       })
     }
     
-    // 检查文件是否已在相册中
-    if (!album.files.includes(fileId)) {
+    const file = fileStorage.findById(fileId)
+    if (!file) {
+      return res.status(404).json({
+        status: 'error',
+        message: '文件不存在'
+      })
+    }
+    
+    // 检查文件是否已在相册中（支持 id 和 _id 格式）
+    const fileIdStr = fileId.toString()
+    const isAlreadyInAlbum = album.files.some(id => {
+      const idStr = id.toString()
+      return idStr === fileIdStr || id === fileId
+    })
+    
+    if (!isAlreadyInAlbum) {
       album.files.push(fileId)
-      await album.save()
+      albumStorage.update(albumId, { files: album.files })
+      console.log(`✅ 文件添加成功，相册中现在有 ${album.files.length} 个文件`)
+    } else {
+      console.log(`⚠️ 文件已在相册中，跳过添加`)
     }
     
     // 更新文件的albumId
-    const File = (await import('../models/File.model.js')).default
-    await File.findByIdAndUpdate(fileId, { albumId: req.params.id })
+    fileStorage.update(fileId, { albumId: albumId })
     
     res.status(200).json({
       status: 'success',
-      message: '文件添加成功'
+      message: isAlreadyInAlbum ? '文件已在相册中' : '文件添加成功'
     })
   } catch (error) {
     console.error('❌ 添加文件失败:', error)
@@ -253,17 +239,12 @@ export const addFileToAlbum = async (req, res) => {
 // 从相册移除文件
 export const removeFileFromAlbum = async (req, res) => {
   try {
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        status: 'error',
-        message: '数据库未连接'
-      })
-    }
-    
     const { fileId } = req.params
+    const albumId = req.params.id
     
-    const album = await Album.findById(req.params.id)
+    console.log(`🗑️ 从相册 ${albumId} 移除文件 ${fileId}`)
+    
+    const album = albumStorage.findById(albumId)
     if (!album) {
       return res.status(404).json({
         status: 'error',
@@ -271,12 +252,22 @@ export const removeFileFromAlbum = async (req, res) => {
       })
     }
     
-    album.files = album.files.filter(id => id.toString() !== fileId)
-    await album.save()
+    // 支持 id 或 _id 格式
+    album.files = album.files.filter(id => {
+      const idStr = id.toString()
+      const fileIdStr = fileId.toString()
+      return idStr !== fileIdStr && (id !== fileId)
+    })
+    
+    albumStorage.update(albumId, { files: album.files })
     
     // 清除文件的albumId
-    const File = (await import('../models/File.model.js')).default
-    await File.findByIdAndUpdate(fileId, { $unset: { albumId: 1 } })
+    const file = fileStorage.findById(fileId)
+    if (file && (file.albumId === albumId || file.albumId === albumId.toString())) {
+      fileStorage.update(fileId, { albumId: null })
+    }
+    
+    console.log(`✅ 文件移除成功，相册中剩余 ${album.files.length} 个文件`)
     
     res.status(200).json({
       status: 'success',
@@ -291,4 +282,3 @@ export const removeFileFromAlbum = async (req, res) => {
     })
   }
 }
-

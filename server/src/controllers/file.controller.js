@@ -1,4 +1,4 @@
-import File from '../models/File.model.js'
+import { fileStorage } from '../utils/storage.util.js'
 import { getFileUrl, deleteFile as deleteFileUtil } from '../utils/file.util.js'
 import { getFileTypeInfo } from '../middleware/upload.middleware.js'
 import path from 'path'
@@ -59,10 +59,11 @@ export const uploadFile = async (req, res) => {
       mimeType: req.file.mimetype,
       size: req.file.size,
       url: fileUrl,
-      uploadedBy: req.body.userId || '000000000000000000000000', // 临时占位，后续从token获取
+      uploadedBy: req.body.userId || 'default-user',
       albumId: req.body.albumId || null,
       description: req.body.description || '',
       tags: req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(',')) : [],
+      isFavorite: false,
     }
 
     // 如果是图片，尝试生成缩略图URL（暂时使用原图）
@@ -70,9 +71,9 @@ export const uploadFile = async (req, res) => {
       fileData.thumbnailUrl = fileUrl
     }
 
-    console.log('💾 保存文件元数据到数据库...')
-    const file = await File.create(fileData)
-    console.log(`✅ 文件元数据已保存，ID: ${file._id}`)
+    console.log('💾 保存文件元数据到本地存储...')
+    const file = fileStorage.create(fileData)
+    console.log(`✅ 文件元数据已保存，ID: ${file.id}`)
 
     res.status(201).json({
       status: 'success',
@@ -101,22 +102,6 @@ export const getFiles = async (req, res) => {
   try {
     console.log('📋 获取文件列表请求')
     
-    // 检查MongoDB连接状态
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      console.log('⚠️ MongoDB 未连接，返回空列表')
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          files: [],
-          total: 0,
-          page: 1,
-          limit: 20,
-          totalPages: 0
-        }
-      })
-    }
-    
     const { type, page = 1, limit = 20, sort = 'desc', isFavorite, search } = req.query
     
     // 构建查询条件
@@ -128,40 +113,24 @@ export const getFiles = async (req, res) => {
       query.isFavorite = true
     }
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { originalName: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ]
+      query.search = search
     }
     
-    // 构建排序
+    // 获取所有文件
+    let files = fileStorage.findAll(query)
+    
+    // 排序
     const sortOrder = sort === 'asc' ? 1 : -1
+    files.sort((a, b) => {
+      const dateA = new Date(a.createdAt)
+      const dateB = new Date(b.createdAt)
+      return sortOrder === 1 ? dateA - dateB : dateB - dateA
+    })
     
     // 分页
+    const total = files.length
     const skip = (parseInt(page) - 1) * parseInt(limit)
-    
-    // 查询文件（populate失败时使用可选链）
-    let files
-    try {
-      files = await File.find(query)
-        .sort({ createdAt: sortOrder })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate('uploadedBy', 'name email')
-        .populate('albumId', 'name')
-        .lean()
-    } catch (populateError) {
-      console.log('⚠️ populate 失败，尝试不populate:', populateError.message)
-      // 如果populate失败，尝试不populate
-      files = await File.find(query)
-        .sort({ createdAt: sortOrder })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean()
-    }
-    
-    const total = await File.countDocuments(query)
+    files = files.slice(skip, skip + parseInt(limit))
     
     console.log(`✅ 返回 ${files.length} 个文件，总计 ${total}`)
     
@@ -190,23 +159,6 @@ export const getFilesByType = async (req, res) => {
   try {
     console.log(`📋 获取 ${req.params.type} 类型文件列表`)
     
-    // 检查MongoDB连接状态
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      console.log('⚠️ MongoDB 未连接，返回空列表')
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          files: [],
-          type: req.params.type,
-          total: 0,
-          page: 1,
-          limit: 20,
-          totalPages: 0
-        }
-      })
-    }
-    
     const { type } = req.params
     const { page = 1, limit = 20, sort = 'desc' } = req.query
     
@@ -217,29 +169,21 @@ export const getFilesByType = async (req, res) => {
       })
     }
     
+    // 获取指定类型的文件
+    let files = fileStorage.findAll({ type })
+    
+    // 排序
     const sortOrder = sort === 'asc' ? 1 : -1
+    files.sort((a, b) => {
+      const dateA = new Date(a.createdAt)
+      const dateB = new Date(b.createdAt)
+      return sortOrder === 1 ? dateA - dateB : dateB - dateA
+    })
+    
+    // 分页
+    const total = files.length
     const skip = (parseInt(page) - 1) * parseInt(limit)
-    
-    // 查询文件（populate失败时使用可选链）
-    let files
-    try {
-      files = await File.find({ type })
-        .sort({ createdAt: sortOrder })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate('uploadedBy', 'name email')
-        .populate('albumId', 'name')
-        .lean()
-    } catch (populateError) {
-      console.log('⚠️ populate 失败，尝试不populate:', populateError.message)
-      files = await File.find({ type })
-        .sort({ createdAt: sortOrder })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean()
-    }
-    
-    const total = await File.countDocuments({ type })
+    files = files.slice(skip, skip + parseInt(limit))
     
     console.log(`✅ 返回 ${files.length} 个 ${type} 文件，总计 ${total}`)
     
@@ -267,10 +211,7 @@ export const getFilesByType = async (req, res) => {
 // 获取文件详情
 export const getFileById = async (req, res) => {
   try {
-    const file = await File.findById(req.params.id)
-      .populate('uploadedBy', 'name email')
-      .populate('albumId', 'name')
-      .lean()
+    const file = fileStorage.findById(req.params.id)
     
     if (!file) {
       return res.status(404).json({
@@ -297,55 +238,40 @@ export const getFileById = async (req, res) => {
 // 更新文件信息
 export const updateFile = async (req, res) => {
   try {
-    console.log(`📝 更新文件信息: ${req.params.id}`, req.body)
+    const fileId = req.params.id
+    console.log(`📝 更新文件信息: ID=${fileId}`, req.body)
     
-    // 检查MongoDB连接状态
-    const mongoose = (await import('mongoose')).default
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
+    // 先检查文件是否存在
+    const existingFile = fileStorage.findById(fileId)
+    if (!existingFile) {
+      console.log(`❌ 文件不存在: ID=${fileId}`)
+      return res.status(404).json({
         status: 'error',
-        message: '数据库未连接，无法更新文件信息'
+        message: '文件不存在'
       })
     }
     
-    // 先尝试不populate更新
-    let file
-    try {
-      file = await File.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true, runValidators: true }
-      )
-      
-      if (!file) {
-        return res.status(404).json({
-          status: 'error',
-          message: '文件不存在'
-        })
-      }
-      
-      // 尝试populate，如果失败就返回不populate的数据
-      try {
-        await file.populate('uploadedBy', 'name email')
-        await file.populate('albumId', 'name')
-      } catch (populateError) {
-        console.log('⚠️ populate 失败，返回不populate的数据:', populateError.message)
-        // 继续执行，返回不populate的数据
-      }
-      
-      console.log(`✅ 文件信息更新成功: ${file.name}`)
-      
-      res.status(200).json({
-        status: 'success',
-        message: '文件信息更新成功',
-        data: {
-          file: file.toObject ? file.toObject() : file
-        }
+    console.log(`✅ 找到文件: ${existingFile.name} (ID: ${existingFile.id}, _id: ${existingFile._id})`)
+    
+    const file = fileStorage.update(fileId, req.body)
+    
+    if (!file) {
+      console.log(`❌ 更新失败: ID=${fileId}`)
+      return res.status(404).json({
+        status: 'error',
+        message: '文件不存在'
       })
-    } catch (updateError) {
-      console.error('❌ 更新文件失败:', updateError)
-      throw updateError
     }
+    
+    console.log(`✅ 文件信息更新成功: ${file.name}`)
+    
+    res.status(200).json({
+      status: 'success',
+      message: '文件信息更新成功',
+      data: {
+        file
+      }
+    })
   } catch (error) {
     console.error('❌ 更新文件信息失败:', error)
     res.status(500).json({
@@ -359,7 +285,7 @@ export const updateFile = async (req, res) => {
 // 删除文件
 export const deleteFileController = async (req, res) => {
   try {
-    const file = await File.findById(req.params.id)
+    const file = fileStorage.findById(req.params.id)
     
     if (!file) {
       return res.status(404).json({
@@ -373,7 +299,7 @@ export const deleteFileController = async (req, res) => {
     await deleteFileUtil(filePath)
     
     // 删除数据库记录
-    await File.findByIdAndDelete(req.params.id)
+    fileStorage.delete(req.params.id)
     
     res.status(200).json({
       status: 'success',
@@ -391,7 +317,7 @@ export const deleteFileController = async (req, res) => {
 // 收藏/取消收藏文件
 export const toggleFavorite = async (req, res) => {
   try {
-    const file = await File.findById(req.params.id)
+    const file = fileStorage.findById(req.params.id)
     
     if (!file) {
       return res.status(404).json({
@@ -400,14 +326,15 @@ export const toggleFavorite = async (req, res) => {
       })
     }
     
-    file.isFavorite = !file.isFavorite
-    await file.save()
+    const updatedFile = fileStorage.update(req.params.id, {
+      isFavorite: !file.isFavorite
+    })
     
     res.status(200).json({
       status: 'success',
-      message: file.isFavorite ? '已收藏' : '已取消收藏',
+      message: updatedFile.isFavorite ? '已收藏' : '已取消收藏',
       data: {
-        isFavorite: file.isFavorite
+        isFavorite: updatedFile.isFavorite
       }
     })
   } catch (error) {
@@ -418,4 +345,3 @@ export const toggleFavorite = async (req, res) => {
     })
   }
 }
-

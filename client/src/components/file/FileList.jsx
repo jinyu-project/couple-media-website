@@ -32,11 +32,12 @@ const getPreviewUrl = (url) => {
   return url.startsWith('/') ? url : `/api/files${url}`
 }
 
-export default function FileList({ fileType = null, onFileClick, onDelete, onFilesLoaded, customFetch, albumId = null, searchQuery = '' }) {
+export default function FileList({ fileType = null, onFileClick, onDelete, onFilesLoaded, customFetch, albumId = null, searchQuery = '', enableSelection = false, selectedFiles = [], onSelectionChange }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [renamingFileId, setRenamingFileId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(selectedFiles || [])
 
   // 获取文件列表
   const fetchFiles = async () => {
@@ -112,7 +113,7 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
       if (data.status === 'success') {
         setFiles((prev) =>
           prev.map((f) =>
-            f._id === fileId
+            (f._id === fileId || f.id === fileId)
               ? { ...f, isFavorite: data.data.isFavorite }
               : f
           )
@@ -134,7 +135,7 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
       const data = await response.json()
 
       if (data.status === 'success') {
-        const updatedFiles = files.filter((f) => f._id !== fileId)
+        const updatedFiles = files.filter((f) => (f._id !== fileId && f.id !== fileId))
         setFiles(updatedFiles)
         if (onFilesLoaded) {
           onFilesLoaded(updatedFiles)
@@ -173,6 +174,28 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
     setRenamingFileId(fileId)
   }
 
+  // 处理选择
+  const handleSelect = (fileId, e) => {
+    if (!enableSelection) return
+    e.stopPropagation()
+    setSelectedIds(prev => {
+      const newSelection = prev.includes(fileId)
+        ? prev.filter(id => id !== fileId)
+        : [...prev, fileId]
+      if (onSelectionChange) {
+        onSelectionChange(newSelection)
+      }
+      return newSelection
+    })
+  }
+
+  // 同步外部选择状态
+  useEffect(() => {
+    if (selectedFiles) {
+      setSelectedIds(selectedFiles)
+    }
+  }, [selectedFiles])
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -207,14 +230,30 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
         const isPhoto = file.type === 'photo'
         const isVideo = file.type === 'video'
         const isDocument = file.type === 'document'
+        const isSelected = selectedIds.includes(file._id || file.id)
 
         return (
           <Card
-            key={file._id}
-            className="group hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onFileClick && onFileClick(file)}
+            key={file._id || file.id}
+            className={cn(
+              "group hover:shadow-lg transition-shadow cursor-pointer",
+              enableSelection && isSelected && "ring-2 ring-primary ring-offset-2"
+            )}
+            onClick={() => !enableSelection && onFileClick && onFileClick(file)}
           >
             <CardContent className="p-0">
+              {/* 选择复选框 */}
+              {enableSelection && (
+                <div className="absolute top-2 left-2 z-10">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => handleSelect(file._id || file.id, e)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </div>
+              )}
               {/* 缩略图/预览 */}
               <div className="relative aspect-video bg-muted overflow-hidden">
                 {isPhoto && (
@@ -242,54 +281,58 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
                   </div>
                 )}
 
-                {/* 操作按钮（悬停显示） */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onFileClick && onFileClick(file)
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDownload(file)
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* 操作按钮（悬停显示，多选模式下隐藏） */}
+                {!enableSelection && (
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onFileClick && onFileClick(file)
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDownload(file)
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
 
-                {/* 收藏按钮 */}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute top-2 right-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleFavorite(file._id, file.isFavorite)
-                  }}
-                >
-                  <Heart
-                    className={cn(
-                      'h-4 w-4',
-                      file.isFavorite
-                        ? 'fill-red-500 text-red-500'
-                        : 'text-white'
-                    )}
-                  />
-                </Button>
+                {/* 收藏按钮（多选模式下隐藏） */}
+                {!enableSelection && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleFavorite(file._id || file.id, file.isFavorite)
+                    }}
+                  >
+                    <Heart
+                      className={cn(
+                        'h-4 w-4',
+                        file.isFavorite
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-white'
+                      )}
+                    />
+                  </Button>
+                )}
               </div>
 
               {/* 文件信息 */}
               <div className="p-4">
-                {renamingFileId === file._id ? (
+                {renamingFileId === (file._id || file.id) ? (
                   <FileRename
                     file={file}
                     onRename={handleRename}
@@ -301,30 +344,32 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
                       <h3 className="font-medium text-sm truncate flex-1" title={file.name}>
                         {file.name}
                       </h3>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            startRename(file._id)
-                          }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(file._id)
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      {!enableSelection && (
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startRename(file._id || file.id)
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(file._id || file.id)
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatFileSize(file.size)}</span>

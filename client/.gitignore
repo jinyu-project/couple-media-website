@@ -23,3 +23,17 @@ dist-ssr
 *.sln
 *.sw?
 
+# 前端相关忽略
+client/node_modules/
+client/.env
+client/dist/  # 如果你本地打包后推送到GitHub，可删除这行（推荐保留，服务器自行打包）
+
+# 后端相关忽略（核心：保护用户上传的照片+依赖+敏感信息）
+server/node_modules/
+server/uploads/  # 你的用户照片上传目录，必须忽略！
+server/.env
+server/node_modules.zip  # 你的压缩包无需同步
+
+# 仓库根目录无关文件
+.DS_Store
+Thumbs.db

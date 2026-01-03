@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 const FILE_LIMITS = {
   photo: {
     types: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 50 * 1024 * 1024, // 50MB
     label: '照片',
   },
   video: {

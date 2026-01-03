@@ -20,11 +20,11 @@ const docsDir = path.join(uploadsDir, 'docs')
 
 // 文件类型映射
 const fileTypeMap = {
-  'image/jpeg': { type: 'photo', maxSize: 5 * 1024 * 1024, dir: photosDir },
-  'image/jpg': { type: 'photo', maxSize: 5 * 1024 * 1024, dir: photosDir },
-  'image/png': { type: 'photo', maxSize: 5 * 1024 * 1024, dir: photosDir },
-  'image/webp': { type: 'photo', maxSize: 5 * 1024 * 1024, dir: photosDir },
-  'image/gif': { type: 'photo', maxSize: 5 * 1024 * 1024, dir: photosDir },
+  'image/jpeg': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
+  'image/jpg': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
+  'image/png': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
+  'image/webp': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
+  'image/gif': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
   'video/mp4': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },
   'video/quicktime': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },
   'video/webm': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },

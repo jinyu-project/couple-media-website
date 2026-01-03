@@ -150,12 +150,12 @@ export default function FilePreview({ file, files = [], onClose, onNext, onPrev,
       )}
 
       {/* 内容区域 */}
-      <div className="max-w-7xl max-h-[90vh] w-full px-16 py-20 flex items-center justify-center">
+      <div className="w-full h-full px-4 md:px-16 py-4 md:py-20 flex items-center justify-center">
         {isPhoto && (
           <img
             src={previewUrl}
             alt={file.name}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-[90vw] max-h-[85vh] w-auto h-auto object-contain"
           />
         )}
 
@@ -164,7 +164,7 @@ export default function FilePreview({ file, files = [], onClose, onNext, onPrev,
             ref={setVideoRef}
             src={previewUrl}
             controls
-            className="max-w-full max-h-full"
+            className="max-w-[90vw] max-h-[85vh] w-auto h-auto"
             autoPlay
           />
         )}
@@ -174,7 +174,7 @@ export default function FilePreview({ file, files = [], onClose, onNext, onPrev,
             {file.mimeType === 'application/pdf' ? (
               <iframe
                 src={previewUrl}
-                className="w-full h-full min-h-[600px] border-0"
+                className="w-full max-w-[90vw] h-full max-h-[85vh] border-0"
                 title={file.name}
               />
             ) : (

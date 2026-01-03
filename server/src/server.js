@@ -1,7 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import mongoose from 'mongoose'
 
 // 导入路由
 import authRoutes from './routes/auth.routes.js'
@@ -19,24 +18,7 @@ app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// 数据库连接
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/couple-media'
-
-// 设置MongoDB连接选项
-const mongooseOptions = {
-  // 连接失败时不抛出错误，让应用继续运行
-  // 这样即使MongoDB未启动，API也能返回空数据而不是500错误
-}
-
-mongoose.connect(MONGODB_URI, mongooseOptions)
-  .then(() => {
-    console.log('✅ MongoDB 连接成功')
-  })
-  .catch((error) => {
-    console.error('❌ MongoDB 连接失败:', error.message)
-    console.log('⚠️  注意：应用将继续运行，但文件数据将无法保存')
-    console.log('💡 提示：请确保MongoDB服务已启动，或使用MongoDB Atlas云数据库')
-  })
+console.log('✅ 使用本地文件存储系统')
 
 // 路由配置
 app.use('/api/auth', authRoutes)

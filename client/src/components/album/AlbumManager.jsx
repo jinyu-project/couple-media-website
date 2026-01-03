@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Plus, Edit2, Trash2, Folder, Image as ImageIcon, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, Folder, FolderOpen, Image as ImageIcon, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import SearchBar from '@/components/search/SearchBar'
+
+// 获取文件预览URL
+const getPreviewUrl = (url) => {
+  if (!url) return null
+  if (url.startsWith('http')) return url
+  return url.startsWith('/') ? url : `/api/files${url}`
+}
 
 export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
   const [albums, setAlbums] = useState([])
@@ -13,6 +21,7 @@ export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
   const [editingAlbum, setEditingAlbum] = useState(null)
   const [formData, setFormData] = useState({ name: '', description: '' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [albumCovers, setAlbumCovers] = useState({}) // 存储相册封面
 
   // 获取相册列表
   const fetchAlbums = async () => {
@@ -24,6 +33,19 @@ export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
         const albumList = data.data.albums || []
         setAlbums(albumList)
         setFilteredAlbums(albumList)
+        
+        // 获取每个相册的第一张照片作为封面
+        const covers = {}
+        for (const album of albumList) {
+          if (album.files && album.files.length > 0) {
+            // 查找第一张照片
+            const firstPhoto = album.files.find(f => f && f.type === 'photo')
+            if (firstPhoto) {
+              covers[album.id || album._id] = getPreviewUrl(firstPhoto.thumbnailUrl || firstPhoto.url)
+            }
+          }
+        }
+        setAlbumCovers(covers)
       }
     } catch (err) {
       console.error('获取相册列表失败:', err)
@@ -188,16 +210,32 @@ export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredAlbums.map((album, index) => (
             <Card
-              key={album._id}
+              key={album._id || album.id}
               className={cn(
-                "card-hover cursor-pointer border-2 transition-all animate-slide-up",
-                selectedAlbumId === album._id
+                "card-hover cursor-pointer border-2 transition-all animate-slide-up overflow-hidden",
+                selectedAlbumId === (album._id || album.id)
                   ? "border-primary shadow-lg shadow-primary/20 bg-gradient-to-br from-primary/5 to-pink-500/5"
                   : "hover:border-primary/50",
               )}
               style={{ animationDelay: `${index * 0.05}s` }}
-              onClick={() => onAlbumSelect && onAlbumSelect(album._id)}
+              onClick={() => onAlbumSelect && onAlbumSelect(album._id || album.id)}
             >
+              {/* 相册封面 */}
+              {albumCovers[album.id || album._id] ? (
+                <div className="relative aspect-video bg-muted overflow-hidden">
+                  <img
+                    src={albumCovers[album.id || album._id]}
+                    alt={album.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                </div>
+              ) : (
+                <div className="relative aspect-video bg-muted flex items-center justify-center">
+                  <Folder className="h-12 w-12 text-muted-foreground" />
+                </div>
+              )}
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -217,7 +255,7 @@ export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(album._id)}
+                      onClick={() => handleDelete(album._id || album.id)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -232,7 +270,7 @@ export default function AlbumManager({ onAlbumSelect, selectedAlbumId }) {
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <ImageIcon className="h-3 w-3" />
-                  <span>{album.files?.length || 0} 个文件</span>
+                  <span>{album.files?.length || 0} 张照片</span>
                 </div>
               </CardContent>
             </Card>
