@@ -13,7 +13,7 @@ const FILE_LIMITS = {
   },
   video: {
     types: ['video/mp4', 'video/quicktime', 'video/webm'],
-    maxSize: 100 * 1024 * 1024, // 100MB
+    maxSize: 5 * 1024 * 1024 * 1024, // 5GB
     label: '视频',
   },
   document: {

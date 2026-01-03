@@ -1,0 +1,27 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "quicktime",
+    "openxmlformats",
+    "officedocument",
+    "wordprocessingml",
+    "msword",
+    "spreadsheetml",
+    "vnd"
+  ],
+  "ignoreWords": [
+    "quicktime",
+    "openxmlformats",
+    "officedocument",
+    "wordprocessingml",
+    "msword",
+    "spreadsheetml"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "build/**"
+  ]
+}
+

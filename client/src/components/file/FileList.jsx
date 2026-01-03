@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Image, Video, FileText, Eye, Download, Heart, Trash2, Pencil } from 'lucide-react'
@@ -40,7 +40,7 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
   const [selectedIds, setSelectedIds] = useState(selectedFiles || [])
 
   // 获取文件列表
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -96,11 +96,11 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
     } finally {
       setLoading(false)
     }
-  }
+  }, [fileType, albumId, searchQuery, customFetch, onFilesLoaded])
 
   useEffect(() => {
     fetchFiles()
-  }, [fileType, albumId, searchQuery])
+  }, [fetchFiles])
 
   // 切换收藏
   const toggleFavorite = async (fileId, currentFavorite) => {
@@ -191,8 +191,13 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
 
   // 同步外部选择状态
   useEffect(() => {
-    if (selectedFiles) {
-      setSelectedIds(selectedFiles)
+    if (selectedFiles && Array.isArray(selectedFiles)) {
+      // 只有当selectedFiles真正变化时才更新（深度比较）
+      const currentIdsStr = JSON.stringify(selectedIds.sort())
+      const newIdsStr = JSON.stringify([...selectedFiles].sort())
+      if (currentIdsStr !== newIdsStr) {
+        setSelectedIds(selectedFiles)
+      }
     }
   }, [selectedFiles])
 
@@ -226,7 +231,15 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {files.map((file) => {
-        const previewUrl = getPreviewUrl(file.thumbnailUrl || file.url)
+        // 对于视频文件，优先使用 thumbnailUrl，如果没有则使用默认封面
+        let previewUrl
+        if (file.type === 'video') {
+          previewUrl = file.thumbnailUrl 
+            ? getPreviewUrl(file.thumbnailUrl) 
+            : '/api/files/preview/default-video-cover.svg'
+        } else {
+          previewUrl = getPreviewUrl(file.thumbnailUrl || file.url)
+        }
         const isPhoto = file.type === 'photo'
         const isVideo = file.type === 'video'
         const isDocument = file.type === 'document'
@@ -265,14 +278,32 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
                   />
                 )}
                 {isVideo && (
-                  <div className="w-full h-full flex items-center justify-center bg-black/50">
-                    <Video className="h-12 w-12 text-white" />
-                    <img
-                      src={previewUrl}
-                      alt={file.name}
-                      className="absolute inset-0 w-full h-full object-cover opacity-50"
-                      loading="lazy"
-                    />
+                  <div className="w-full h-full relative bg-black/50">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          // 如果图片加载失败，隐藏图片并显示fallback
+                          e.target.style.display = 'none'
+                          const parent = e.target.parentElement
+                          if (parent) {
+                            const fallback = parent.querySelector('.video-fallback')
+                            if (fallback) {
+                              fallback.style.display = 'flex'
+                            }
+                          }
+                        }}
+                      />
+                    ) : null}
+                    {/* 视频播放图标覆盖层（fallback时显示） */}
+                    <div className={`video-fallback absolute inset-0 flex items-center justify-center ${previewUrl ? 'hidden' : 'flex'}`}>
+                      <div className="bg-black/30 rounded-full p-3">
+                        <Video className="h-12 w-12 text-white" />
+                      </div>
+                    </div>
                   </div>
                 )}
                 {isDocument && (

@@ -1,6 +1,7 @@
 import { fileStorage } from '../utils/storage.util.js'
 import { getFileUrl, deleteFile as deleteFileUtil } from '../utils/file.util.js'
 import { getFileTypeInfo } from '../middleware/upload.middleware.js'
+import { extractVideoThumbnail } from '../utils/video.util.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
@@ -21,7 +22,9 @@ export const uploadFile = async (req, res) => {
       })
     }
 
-    console.log(`📄 文件信息: ${req.file.originalname}, 类型: ${req.file.mimetype}, 大小: ${req.file.size} bytes`)
+    // 正确处理文件名编码（处理中文等特殊字符）
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
+    console.log(`📄 文件信息: ${originalName}, 类型: ${req.file.mimetype}, 大小: ${req.file.size} bytes`)
 
     const fileInfo = getFileTypeInfo(req.file.mimetype)
     if (!fileInfo) {
@@ -52,9 +55,10 @@ export const uploadFile = async (req, res) => {
     console.log(`🔗 文件URL: ${fileUrl}`)
 
     // 创建文件元数据
+    // 使用之前已经处理好的文件名编码
     const fileData = {
-      name: path.basename(req.file.filename, path.extname(req.file.filename)),
-      originalName: req.file.originalname,
+      name: originalName, // 使用原始文件名作为显示名称（正确编码）
+      originalName: originalName,
       type: fileInfo.type,
       mimeType: req.file.mimetype,
       size: req.file.size,
@@ -69,6 +73,31 @@ export const uploadFile = async (req, res) => {
     // 如果是图片，尝试生成缩略图URL（暂时使用原图）
     if (fileInfo.type === 'photo') {
       fileData.thumbnailUrl = fileUrl
+    }
+    
+    // 如果是视频，提取第一帧作为封面
+    if (fileInfo.type === 'video') {
+      try {
+        console.log('🎬 开始提取视频第一帧作为封面...')
+        console.log(`📹 视频文件路径: ${req.file.path}`)
+        const thumbnailPath = await extractVideoThumbnail(req.file.path)
+        console.log(`📸 缩略图路径: ${thumbnailPath}`)
+        
+        // 检查缩略图文件是否存在
+        if (!fs.existsSync(thumbnailPath)) {
+          throw new Error('缩略图文件未生成')
+        }
+        
+        const thumbnailUrl = getFileUrl(thumbnailPath)
+        fileData.thumbnailUrl = thumbnailUrl
+        console.log(`✅ 视频封面提取成功: ${thumbnailUrl}`)
+      } catch (error) {
+        console.error('❌ 视频封面提取失败:', error.message)
+        console.error('错误堆栈:', error.stack)
+        console.warn('⚠️ 使用默认封面')
+        // 如果提取失败，使用默认封面
+        fileData.thumbnailUrl = '/api/files/preview/default-video-cover.svg'
+      }
     }
 
     console.log('💾 保存文件元数据到本地存储...')
@@ -297,6 +326,21 @@ export const deleteFileController = async (req, res) => {
     // 删除物理文件
     const filePath = path.join(__dirname, '../../uploads', file.url.replace('/api/files/preview/', ''))
     await deleteFileUtil(filePath)
+    
+    // 如果是视频文件，同时删除缩略图
+    if (file.type === 'video' && file.thumbnailUrl) {
+      try {
+        const thumbnailPath = path.join(__dirname, '../../uploads', file.thumbnailUrl.replace('/api/files/preview/', ''))
+        // 只删除缩略图文件（不是默认封面SVG）
+        if (fs.existsSync(thumbnailPath) && !thumbnailPath.endsWith('default-video-cover.svg')) {
+          await deleteFileUtil(thumbnailPath)
+          console.log(`🗑️ 已删除视频缩略图: ${thumbnailPath}`)
+        }
+      } catch (thumbError) {
+        console.warn('⚠️ 删除缩略图失败:', thumbError.message)
+        // 继续执行，不因为缩略图删除失败而中断
+      }
+    }
     
     // 删除数据库记录
     fileStorage.delete(req.params.id)

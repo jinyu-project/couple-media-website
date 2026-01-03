@@ -257,7 +257,15 @@ export default function Albums() {
               {/* 照片网格 */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4">
                 {files.map((file, index) => {
-                  const previewUrl = getPreviewUrl(file.thumbnailUrl || file.url)
+                  // 对于视频文件，优先使用 thumbnailUrl，如果没有则使用默认封面
+                  let previewUrl
+                  if (file.type === 'video') {
+                    previewUrl = file.thumbnailUrl 
+                      ? getPreviewUrl(file.thumbnailUrl) 
+                      : '/api/files/preview/default-video-cover.svg'
+                  } else {
+                    previewUrl = getPreviewUrl(file.thumbnailUrl || file.url)
+                  }
                   
                   return (
                     <div

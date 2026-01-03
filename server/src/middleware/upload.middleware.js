@@ -25,9 +25,9 @@ const fileTypeMap = {
   'image/png': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
   'image/webp': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
   'image/gif': { type: 'photo', maxSize: 50 * 1024 * 1024, dir: photosDir },
-  'video/mp4': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },
-  'video/quicktime': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },
-  'video/webm': { type: 'video', maxSize: 100 * 1024 * 1024, dir: videosDir },
+  'video/mp4': { type: 'video', maxSize: 5 * 1024 * 1024 * 1024, dir: videosDir },
+  'video/quicktime': { type: 'video', maxSize: 5 * 1024 * 1024 * 1024, dir: videosDir },
+  'video/webm': { type: 'video', maxSize: 5 * 1024 * 1024 * 1024, dir: videosDir },
   'application/pdf': { type: 'document', maxSize: 20 * 1024 * 1024, dir: docsDir },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { type: 'document', maxSize: 20 * 1024 * 1024, dir: docsDir },
   'application/msword': { type: 'document', maxSize: 20 * 1024 * 1024, dir: docsDir },
@@ -48,10 +48,30 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // 生成唯一文件名：时间戳-随机数-原始文件名
+    // 正确处理文件名编码（处理中文等特殊字符）
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
     const ext = path.extname(file.originalname)
-    const name = path.basename(file.originalname, ext)
-    cb(null, `${name}-${uniqueSuffix}${ext}`)
+    
+    // 正确处理文件名编码
+    let originalName
+    try {
+      // 尝试从 latin1 转换为 utf8（multer 默认使用 latin1）
+      originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
+    } catch (e) {
+      // 如果转换失败，直接使用原始名称
+      originalName = file.originalname
+    }
+    
+    const name = path.basename(originalName, ext)
+    // 清理文件名中的特殊字符，但保留中文
+    const safeName = name.replace(/[<>:"/\\|?*]/g, '_').trim()
+    
+    // 如果文件名为空，使用默认名称
+    const finalName = safeName || 'file'
+    
+    // 使用 Buffer 确保文件名正确编码
+    const encodedName = Buffer.from(`${finalName}-${uniqueSuffix}${ext}`, 'utf8').toString('utf8')
+    cb(null, encodedName)
   }
 })
 
@@ -70,7 +90,7 @@ export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 最大100MB（视频的最大限制）
+    fileSize: 5 * 1024 * 1024 * 1024, // 最大5GB（视频的最大限制）
   }
 })
 
