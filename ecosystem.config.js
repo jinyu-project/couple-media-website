@@ -1,7 +1,7 @@
 // PM2 进程管理配置文件
 // 用于生产环境部署和管理 Node.js 应用
 
-export default {
+module.exports = {
   apps: [
     {
       name: 'couple-media-server',
