@@ -11,7 +11,7 @@ import albumRoutes from './routes/album.routes.js'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3002
 
 // 中间件配置
 app.use(cors())
