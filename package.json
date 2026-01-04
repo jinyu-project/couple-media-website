@@ -5,12 +5,18 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "cd server && npm start",
+    "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:server": "cd server && npm start",
     "start:client": "cd client && npm run dev",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "deploy": "./deploy.sh",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop couple-media-server",
+    "pm2:restart": "pm2 restart couple-media-server",
+    "pm2:logs": "pm2 logs couple-media-server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

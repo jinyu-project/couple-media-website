@@ -2,42 +2,44 @@
 node_modules/
 */node_modules/
 
-# Build outputs
-dist/
-build/
-*/dist/
-*/build/
-
 # Environment variables
 .env
 .env.local
 .env.*.local
-*/.env
-*/.env.local
+server/.env
+
+# Build outputs
+dist/
+build/
+client/dist/
+client/build/
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+lerna-debug.log*
+server/logs/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Uploads (可选，根据需求决定是否忽略)
+# server/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Uploads
-uploads/
-*/uploads/
-
-# OS files
 Thumbs.db
 
+# PM2
+.pm2/
+
+# Temporary files
+*.tmp
+*.temp
