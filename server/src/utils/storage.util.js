@@ -10,6 +10,8 @@ const DATA_DIR = path.join(__dirname, '../../data')
 const FILES_DB = path.join(DATA_DIR, 'files.json')
 const ALBUMS_DB = path.join(DATA_DIR, 'albums.json')
 const USERS_DB = path.join(DATA_DIR, 'users.json')
+const NOVELS_DB = path.join(DATA_DIR, 'novels.json')
+const CHAPTERS_DB = path.join(DATA_DIR, 'chapters.json')
 
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) {
@@ -27,6 +29,8 @@ const initDbFile = (filePath, defaultValue = []) => {
 initDbFile(FILES_DB, [])
 initDbFile(ALBUMS_DB, [])
 initDbFile(USERS_DB, [])
+initDbFile(NOVELS_DB, [])
+initDbFile(CHAPTERS_DB, [])
 
 // 读取数据
 const readData = (filePath) => {
@@ -229,6 +233,174 @@ export const userStorage = {
     users.push(newUser)
     writeData(USERS_DB, users)
     return newUser
+  }
+}
+
+// 小说存储操作
+export const novelStorage = {
+  findAll: () => {
+    return readData(NOVELS_DB)
+  },
+
+  findById: (id) => {
+    const novels = readData(NOVELS_DB)
+    return novels.find(n => n.id === id)
+  },
+
+  create: (novelData) => {
+    const novels = readData(NOVELS_DB)
+    const newNovel = {
+      id: generateId(),
+      ...novelData,
+      chapterCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    novels.push(newNovel)
+    writeData(NOVELS_DB, novels)
+    return newNovel
+  },
+
+  update: (id, updateData) => {
+    const novels = readData(NOVELS_DB)
+    const index = novels.findIndex(n => n.id === id)
+    if (index === -1) return null
+    
+    novels[index] = {
+      ...novels[index],
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    }
+    writeData(NOVELS_DB, novels)
+    return novels[index]
+  },
+
+  delete: (id) => {
+    const novels = readData(NOVELS_DB)
+    const index = novels.findIndex(n => n.id === id)
+    if (index === -1) return false
+    
+    novels.splice(index, 1)
+    writeData(NOVELS_DB, novels)
+    return true
+  },
+
+  updateChapterCount: (id) => {
+    const novels = readData(NOVELS_DB)
+    const novel = novels.find(n => n.id === id)
+    if (!novel) return null
+    
+    const chapters = readData(CHAPTERS_DB)
+    const chapterCount = chapters.filter(c => c.novelId === id).length
+    novel.chapterCount = chapterCount
+    novel.updatedAt = new Date().toISOString()
+    writeData(NOVELS_DB, novels)
+    return novel
+  }
+}
+
+// 章节存储操作
+export const chapterStorage = {
+  findAll: (query = {}) => {
+    const chapters = readData(CHAPTERS_DB)
+    let filtered = chapters
+    
+    if (query.novelId) {
+      filtered = filtered.filter(c => c.novelId === query.novelId)
+    }
+    
+    // 按 order 排序，如果没有 order 则按创建时间排序
+    filtered.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order
+      }
+      if (a.order !== undefined) return -1
+      if (b.order !== undefined) return 1
+      return new Date(a.createdAt) - new Date(b.createdAt)
+    })
+    
+    return filtered
+  },
+
+  findById: (id) => {
+    const chapters = readData(CHAPTERS_DB)
+    return chapters.find(c => c.id === id)
+  },
+
+  create: (chapterData) => {
+    const chapters = readData(CHAPTERS_DB)
+    
+    // 如果没有指定 order，自动设置为最大 order + 1
+    if (chapterData.order === undefined) {
+      const novelChapters = chapters.filter(c => c.novelId === chapterData.novelId)
+      const maxOrder = novelChapters.length > 0 
+        ? Math.max(...novelChapters.map(c => c.order || 0))
+        : -1
+      chapterData.order = maxOrder + 1
+    }
+    
+    const newChapter = {
+      id: generateId(),
+      ...chapterData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    chapters.push(newChapter)
+    writeData(CHAPTERS_DB, chapters)
+    
+    // 更新小说的章节数
+    novelStorage.updateChapterCount(chapterData.novelId)
+    
+    return newChapter
+  },
+
+  update: (id, updateData) => {
+    const chapters = readData(CHAPTERS_DB)
+    const index = chapters.findIndex(c => c.id === id)
+    if (index === -1) return null
+    
+    chapters[index] = {
+      ...chapters[index],
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    }
+    writeData(CHAPTERS_DB, chapters)
+    
+    // 如果更新了 novelId，需要更新两个小说的章节数
+    if (updateData.novelId && chapters[index].novelId !== updateData.novelId) {
+      novelStorage.updateChapterCount(chapters[index].novelId)
+      novelStorage.updateChapterCount(updateData.novelId)
+    }
+    
+    return chapters[index]
+  },
+
+  delete: (id) => {
+    const chapters = readData(CHAPTERS_DB)
+    const index = chapters.findIndex(c => c.id === id)
+    if (index === -1) return false
+    
+    const novelId = chapters[index].novelId
+    chapters.splice(index, 1)
+    writeData(CHAPTERS_DB, chapters)
+    
+    // 更新小说的章节数
+    novelStorage.updateChapterCount(novelId)
+    
+    return true
+  },
+
+  updateOrder: (chapterIds) => {
+    const chapters = readData(CHAPTERS_DB)
+    chapterIds.forEach((chapterId, index) => {
+      const chapter = chapters.find(c => c.id === chapterId)
+      if (chapter) {
+        chapter.order = index
+        chapter.updatedAt = new Date().toISOString()
+      }
+    })
+    writeData(CHAPTERS_DB, chapters)
+    return true
   }
 }
 

@@ -86,3 +86,4 @@ echo "查看日志: pm2 logs couple-media-server"
 echo "停止服务: pm2 stop couple-media-server"
 echo "重启服务: pm2 restart couple-media-server"
 
+

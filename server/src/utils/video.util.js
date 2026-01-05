@@ -49,7 +49,38 @@ export const extractVideoThumbnail = (videoPath, outputPath = null) => {
     console.log(`🎬 开始提取视频缩略图: ${videoPath}`)
     console.log(`📸 输出路径: ${outputPath}`)
 
-    // 使用FFmpeg提取第一帧
+    // 先获取视频信息以确定宽高比
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        console.warn('⚠️ 无法获取视频信息，使用默认横版尺寸:', err.message)
+        // 如果无法获取视频信息，使用横版尺寸
+        extractThumbnailWithSize(videoPath, outputPath, '400x225', resolve, reject)
+        return
+      }
+
+      const videoStream = metadata.streams.find(s => s.codec_type === 'video')
+      if (!videoStream) {
+        console.warn('⚠️ 未找到视频流，使用默认横版尺寸')
+        extractThumbnailWithSize(videoPath, outputPath, '400x225', resolve, reject)
+        return
+      }
+
+      const width = videoStream.width
+      const height = videoStream.height
+      
+      console.log(`📐 视频尺寸: ${width}x${height}`)
+      
+      // 统一使用横版缩略图，尺寸更小（16:9比例）
+      const thumbnailSize = '400x225'
+      console.log('🖥️ 使用横版缩略图')
+
+      extractThumbnailWithSize(videoPath, outputPath, thumbnailSize, resolve, reject)
+    })
+  })
+}
+
+// 提取缩略图的辅助函数
+const extractThumbnailWithSize = (videoPath, outputPath, thumbnailSize, resolve, reject) => {
     const ffmpegInstance = ffmpeg(videoPath)
     
     let stderrOutput = ''
@@ -61,7 +92,7 @@ export const extractVideoThumbnail = (videoPath, outputPath = null) => {
         timestamps: ['00:00:00.000'], // 提取第一帧（0秒）
         filename: path.basename(outputPath),
         folder: path.dirname(outputPath),
-        size: '800x450', // 缩略图尺寸（16:9比例）
+        size: thumbnailSize, // 根据视频方向使用不同尺寸
       })
       .on('start', (commandLine) => {
         console.log('FFmpeg命令:', commandLine)
@@ -97,7 +128,6 @@ export const extractVideoThumbnail = (videoPath, outputPath = null) => {
           console.warn('FFmpeg警告:', stderrLine.trim())
         }
       })
-  })
 }
 
 /**

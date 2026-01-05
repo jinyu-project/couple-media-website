@@ -6,7 +6,8 @@ import {
   FileText, 
   Folder,
   Clock,
-  Star 
+  Star,
+  BookOpen
 } from 'lucide-react'
 
 const menuItems = [
@@ -14,6 +15,7 @@ const menuItems = [
   { path: '/videos', label: '视频', icon: Video },
   { path: '/documents', label: '文档', icon: FileText },
   { path: '/albums', label: '相册', icon: Folder },
+  { path: '/novels', label: '小说', icon: BookOpen },
   { path: '/recent', label: '最近', icon: Clock },
   { path: '/favorites', label: '收藏', icon: Star },
 ]

@@ -26,6 +26,9 @@ export default function Header() {
           <Link to="/albums">
             <Button variant="ghost">相册</Button>
           </Link>
+          <Link to="/novels">
+            <Button variant="ghost">小说</Button>
+          </Link>
         </nav>
       </div>
     </header>

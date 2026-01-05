@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes.js'
 import userRoutes from './routes/user.routes.js'
 import fileRoutes from './routes/file.routes.js'
 import albumRoutes from './routes/album.routes.js'
+import novelRoutes from './routes/novel.routes.js'
 
 dotenv.config()
 
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/files', fileRoutes)
 app.use('/api/albums', albumRoutes)
+app.use('/api/novels', novelRoutes)
 
 // 健康检查
 app.get('/api/health', (req, res) => {

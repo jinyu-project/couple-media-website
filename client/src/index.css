@@ -12,6 +12,37 @@
   display: none;  /* Chrome, Safari and Opera */
 }
 
+/* 章节阅读器样式 */
+.chapter-reader {
+  font-family: SimSun, "宋体", serif;
+  font-size: 20px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.chapter-reader p {
+  margin-bottom: 1em;
+  text-indent: 2em;
+}
+
+.chapter-reader h1,
+.chapter-reader h2,
+.chapter-reader h3,
+.chapter-reader h4,
+.chapter-reader h5,
+.chapter-reader h6 {
+  font-family: SimSun, "宋体", serif;
+  margin-top: 1.5em;
+  margin-bottom: 1em;
+  font-weight: bold;
+}
+
+.chapter-reader img {
+  max-width: 100%;
+  height: auto;
+  margin: 1em 0;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

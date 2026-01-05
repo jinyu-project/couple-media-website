@@ -268,7 +268,10 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
                 </div>
               )}
               {/* 缩略图/预览 */}
-              <div className="relative aspect-video bg-muted overflow-hidden">
+              <div className={cn(
+                "relative bg-muted overflow-hidden",
+                "aspect-video" // 视频和照片都使用横版
+              )}>
                 {isPhoto && (
                   <img
                     src={previewUrl}
@@ -278,12 +281,12 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
                   />
                 )}
                 {isVideo && (
-                  <div className="w-full h-full relative bg-black/50">
+                  <div className="w-full h-full relative bg-black flex items-center justify-center overflow-hidden">
                     {previewUrl ? (
                       <img
                         src={previewUrl}
                         alt={file.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         loading="lazy"
                         onError={(e) => {
                           // 如果图片加载失败，隐藏图片并显示fallback
