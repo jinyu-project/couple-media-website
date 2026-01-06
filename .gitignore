@@ -43,3 +43,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Local configuration (contains sensitive information)
+config.local.md

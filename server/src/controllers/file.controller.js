@@ -12,10 +12,7 @@ const __dirname = path.dirname(__filename)
 // 上传文件
 export const uploadFile = async (req, res) => {
   try {
-    console.log('📤 收到文件上传请求')
-    
     if (!req.file) {
-      console.log('❌ 未收到文件')
       return res.status(400).json({
         status: 'error',
         message: '请选择要上传的文件'
@@ -24,11 +21,9 @@ export const uploadFile = async (req, res) => {
 
     // 正确处理文件名编码（处理中文等特殊字符）
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
-    console.log(`📄 文件信息: ${originalName}, 类型: ${req.file.mimetype}, 大小: ${req.file.size} bytes`)
 
     const fileInfo = getFileTypeInfo(req.file.mimetype)
     if (!fileInfo) {
-      console.log(`❌ 不支持的文件类型: ${req.file.mimetype}`)
       // 删除已上传的文件
       if (fs.existsSync(req.file.path)) {
         await deleteFileUtil(req.file.path)
@@ -41,7 +36,6 @@ export const uploadFile = async (req, res) => {
 
     // 验证文件大小
     if (req.file.size > fileInfo.maxSize) {
-      console.log(`❌ 文件大小超过限制: ${req.file.size} > ${fileInfo.maxSize}`)
       await deleteFileUtil(req.file.path)
       return res.status(400).json({
         status: 'error',
@@ -51,8 +45,6 @@ export const uploadFile = async (req, res) => {
 
     // 获取文件URL
     const fileUrl = getFileUrl(req.file.path)
-    console.log(`✅ 文件已保存到: ${req.file.path}`)
-    console.log(`🔗 文件URL: ${fileUrl}`)
 
     // 创建文件元数据
     // 使用之前已经处理好的文件名编码
@@ -78,10 +70,7 @@ export const uploadFile = async (req, res) => {
     // 如果是视频，提取第一帧作为封面
     if (fileInfo.type === 'video') {
       try {
-        console.log('🎬 开始提取视频第一帧作为封面...')
-        console.log(`📹 视频文件路径: ${req.file.path}`)
         const thumbnailPath = await extractVideoThumbnail(req.file.path)
-        console.log(`📸 缩略图路径: ${thumbnailPath}`)
         
         // 检查缩略图文件是否存在
         if (!fs.existsSync(thumbnailPath)) {
@@ -90,19 +79,14 @@ export const uploadFile = async (req, res) => {
         
         const thumbnailUrl = getFileUrl(thumbnailPath)
         fileData.thumbnailUrl = thumbnailUrl
-        console.log(`✅ 视频封面提取成功: ${thumbnailUrl}`)
       } catch (error) {
-        console.error('❌ 视频封面提取失败:', error.message)
-        console.error('错误堆栈:', error.stack)
-        console.warn('⚠️ 使用默认封面')
+        console.error('视频封面提取失败:', error.message)
         // 如果提取失败，使用默认封面
         fileData.thumbnailUrl = '/api/files/preview/default-video-cover.svg'
       }
     }
 
-    console.log('💾 保存文件元数据到本地存储...')
     const file = fileStorage.create(fileData)
-    console.log(`✅ 文件元数据已保存，ID: ${file.id}`)
 
     res.status(201).json({
       status: 'success',
@@ -112,10 +96,9 @@ export const uploadFile = async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('❌ 文件上传失败:', error)
+    console.error('文件上传失败:', error)
     // 如果创建失败，删除已上传的文件
     if (req.file && fs.existsSync(req.file.path)) {
-      console.log('🗑️ 删除已上传的文件...')
       await deleteFileUtil(req.file.path)
     }
     res.status(500).json({
@@ -129,8 +112,6 @@ export const uploadFile = async (req, res) => {
 // 获取文件列表
 export const getFiles = async (req, res) => {
   try {
-    console.log('📋 获取文件列表请求')
-    
     const { type, page = 1, limit = 20, sort = 'desc', isFavorite, search } = req.query
     
     // 构建查询条件
@@ -161,8 +142,6 @@ export const getFiles = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit)
     files = files.slice(skip, skip + parseInt(limit))
     
-    console.log(`✅ 返回 ${files.length} 个文件，总计 ${total}`)
-    
     res.status(200).json({
       status: 'success',
       data: {
@@ -186,8 +165,6 @@ export const getFiles = async (req, res) => {
 // 根据类型获取文件
 export const getFilesByType = async (req, res) => {
   try {
-    console.log(`📋 获取 ${req.params.type} 类型文件列表`)
-    
     const { type } = req.params
     const { page = 1, limit = 20, sort = 'desc' } = req.query
     
@@ -213,8 +190,6 @@ export const getFilesByType = async (req, res) => {
     const total = files.length
     const skip = (parseInt(page) - 1) * parseInt(limit)
     files = files.slice(skip, skip + parseInt(limit))
-    
-    console.log(`✅ 返回 ${files.length} 个 ${type} 文件，总计 ${total}`)
     
     res.status(200).json({
       status: 'success',
@@ -268,31 +243,24 @@ export const getFileById = async (req, res) => {
 export const updateFile = async (req, res) => {
   try {
     const fileId = req.params.id
-    console.log(`📝 更新文件信息: ID=${fileId}`, req.body)
     
     // 先检查文件是否存在
     const existingFile = fileStorage.findById(fileId)
     if (!existingFile) {
-      console.log(`❌ 文件不存在: ID=${fileId}`)
       return res.status(404).json({
         status: 'error',
         message: '文件不存在'
       })
     }
-    
-    console.log(`✅ 找到文件: ${existingFile.name} (ID: ${existingFile.id}, _id: ${existingFile._id})`)
     
     const file = fileStorage.update(fileId, req.body)
     
     if (!file) {
-      console.log(`❌ 更新失败: ID=${fileId}`)
       return res.status(404).json({
         status: 'error',
         message: '文件不存在'
       })
     }
-    
-    console.log(`✅ 文件信息更新成功: ${file.name}`)
     
     res.status(200).json({
       status: 'success',
@@ -334,10 +302,9 @@ export const deleteFileController = async (req, res) => {
         // 只删除缩略图文件（不是默认封面SVG）
         if (fs.existsSync(thumbnailPath) && !thumbnailPath.endsWith('default-video-cover.svg')) {
           await deleteFileUtil(thumbnailPath)
-          console.log(`🗑️ 已删除视频缩略图: ${thumbnailPath}`)
         }
       } catch (thumbError) {
-        console.warn('⚠️ 删除缩略图失败:', thumbError.message)
+        console.warn('删除缩略图失败:', thumbError.message)
         // 继续执行，不因为缩略图删除失败而中断
       }
     }

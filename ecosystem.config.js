@@ -5,13 +5,13 @@ module.exports = {
   apps: [
     {
       name: 'couple-media-server',
-      script: './server/src/server.js',
+      script: './src/server.js',
       cwd: './server',
       instances: 1,
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        PORT: 3001
+        PORT: 3002
       },
       error_file: './logs/server-error.log',
       out_file: './logs/server-out.log',

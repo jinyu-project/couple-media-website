@@ -46,7 +46,6 @@ export default function FileRename({ file, onRename, onCancel }) {
         // 不显示成功提示，直接更新即可
       } else {
         // 如果状态不是success，但可能是其他情况
-        console.warn('重命名响应:', data)
         // 如果返回了文件数据，即使status不是success也尝试更新
         if (data.data && data.data.file) {
           if (onRename) {

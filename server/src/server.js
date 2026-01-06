@@ -19,7 +19,6 @@ app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-console.log('✅ 使用本地文件存储系统')
 
 // 路由配置
 app.use('/api/auth', authRoutes)

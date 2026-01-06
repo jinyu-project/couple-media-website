@@ -177,7 +177,9 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
   // 处理选择
   const handleSelect = (fileId, e) => {
     if (!enableSelection) return
-    e.stopPropagation()
+    if (e && e.stopPropagation) {
+      e.stopPropagation()
+    }
     setSelectedIds(prev => {
       const newSelection = prev.includes(fileId)
         ? prev.filter(id => id !== fileId)
@@ -249,28 +251,41 @@ export default function FileList({ fileType = null, onFileClick, onDelete, onFil
           <Card
             key={file._id || file.id}
             className={cn(
-              "group hover:shadow-lg transition-shadow cursor-pointer",
-              enableSelection && isSelected && "ring-2 ring-primary ring-offset-2"
+              "group hover:shadow-lg transition-all cursor-pointer relative",
+              enableSelection && isSelected && "ring-2 ring-primary ring-offset-2 border-primary"
             )}
-            onClick={() => !enableSelection && onFileClick && onFileClick(file)}
+            onClick={() => {
+              if (enableSelection) {
+                handleSelect(file._id || file.id, { stopPropagation: () => {} })
+              } else {
+                onFileClick && onFileClick(file)
+              }
+            }}
           >
-            <CardContent className="p-0">
+            <CardContent className="p-0 relative">
               {/* 选择复选框 */}
               {enableSelection && (
-                <div className="absolute top-2 left-2 z-10">
+                <div className="absolute top-2 left-2 z-20 bg-white/90 backdrop-blur-sm rounded p-1 shadow-md">
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={(e) => handleSelect(file._id || file.id, e)}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                    className="w-5 h-5 rounded border-2 border-gray-300 text-primary focus:ring-2 focus:ring-primary cursor-pointer"
+                    style={{ accentColor: 'hsl(var(--primary))' }}
                   />
                 </div>
+              )}
+              
+              {/* 选中遮罩层 */}
+              {enableSelection && isSelected && (
+                <div className="absolute inset-0 bg-primary/10 z-10 pointer-events-none" />
               )}
               {/* 缩略图/预览 */}
               <div className={cn(
                 "relative bg-muted overflow-hidden",
-                "aspect-video" // 视频和照片都使用横版
+                "aspect-video", // 视频和照片都使用横版
+                enableSelection && isSelected && "opacity-90"
               )}>
                 {isPhoto && (
                   <img

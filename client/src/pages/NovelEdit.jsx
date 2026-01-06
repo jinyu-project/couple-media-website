@@ -10,9 +10,6 @@ export default function NovelEdit() {
   const { id } = useParams()
   const isNew = id === 'new' || !id
   
-  // 调试日志
-  console.log('NovelEdit 组件渲染 - id:', id, 'isNew:', isNew)
-  
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -29,7 +26,6 @@ export default function NovelEdit() {
 
   // 如果是编辑模式，获取小说信息
   useEffect(() => {
-    console.log('NovelEdit useEffect - isNew:', isNew, 'id:', id)
     if (!isNew && id) {
       fetchNovel()
     }
@@ -37,15 +33,12 @@ export default function NovelEdit() {
 
   const fetchNovel = async () => {
     if (!id || id === 'new') {
-      console.log('跳过获取小说信息，id 无效:', id)
       return
     }
     try {
       setLoading(true)
-      console.log('获取小说信息，ID:', id)
       const response = await fetch(`/api/novels/${id}`)
       const data = await response.json()
-      console.log('获取小说信息响应:', data)
       if (data.status === 'success' && data.data.novel) {
         const novel = data.data.novel
         setFormData({
@@ -57,12 +50,9 @@ export default function NovelEdit() {
           tags: novel.tags || []
         })
         // 设置封面预览
-        // 设置封面预览
         if (novel.coverUrl && novel.coverUrl !== '/api/files/preview/undefined') {
-          console.log('设置封面预览:', novel.coverUrl)
           setCoverPreview(novel.coverUrl)
         } else {
-          console.log('小说没有封面或封面URL无效')
           setCoverPreview('')
           // 清除无效的封面URL
           if (novel.coverUrl === '/api/files/preview/undefined') {
@@ -122,11 +112,9 @@ export default function NovelEdit() {
       })
 
       const data = await response.json()
-      console.log('封面上传响应:', data)
       if (data.status === 'success' && data.data.file) {
         // 文件上传返回的是 url 字段，不是 path
         const coverUrl = data.data.file.url || data.data.file.path
-        console.log('封面URL:', coverUrl)
         if (!coverUrl) {
           throw new Error('上传成功但未返回文件URL')
         }
@@ -149,14 +137,11 @@ export default function NovelEdit() {
 
     try {
       setSaving(true)
-      console.log('开始保存小说，isNew:', isNew, 'id:', id)
 
       // 先上传封面
       let coverUrl = formData.coverUrl
       if (coverFile) {
-        console.log('上传封面...')
         coverUrl = await uploadCover()
-        console.log('封面上传完成，URL:', coverUrl)
       }
       
       // 清除无效的封面URL
@@ -171,7 +156,6 @@ export default function NovelEdit() {
 
       const url = isNew ? '/api/novels' : `/api/novels/${id}`
       const method = isNew ? 'POST' : 'PUT'
-      console.log('请求 URL:', url, '方法:', method, '数据:', novelData)
 
       const response = await fetch(url, {
         method,
@@ -180,14 +164,10 @@ export default function NovelEdit() {
         },
         body: JSON.stringify(novelData)
       })
-      
-      console.log('响应状态:', response.status)
 
       const data = await response.json()
-      console.log('保存响应:', data)
       if (data.status === 'success') {
         const novelId = isNew ? data.data.novel.id : id
-        console.log('保存成功，跳转到:', `/novels/${novelId}`)
         navigate(`/novels/${novelId}`)
       } else {
         console.error('保存失败:', data)

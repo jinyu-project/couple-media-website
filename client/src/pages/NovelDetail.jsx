@@ -18,13 +18,9 @@ export default function NovelDetail() {
   const fetchNovel = async () => {
     try {
       setLoading(true)
-      console.log('获取小说详情，ID:', id)
       const response = await fetch(`/api/novels/${id}`)
-      console.log('响应状态:', response.status)
       const data = await response.json()
-      console.log('响应数据:', data)
       if (data.status === 'success' && data.data.novel) {
-        console.log('小说数据:', data.data.novel)
         setNovel(data.data.novel)
         setChapters(data.data.novel.chapters || [])
       } else {
@@ -92,8 +88,6 @@ export default function NovelDetail() {
       </div>
     )
   }
-
-  console.log('渲染小说详情页面 - novel:', novel, 'chapters:', chapters)
 
   return (
     <div className="p-6 space-y-6">

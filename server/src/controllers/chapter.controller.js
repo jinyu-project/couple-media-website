@@ -3,8 +3,6 @@ import { chapterStorage, novelStorage } from '../utils/storage.util.js'
 // 创建章节
 export const createChapter = async (req, res) => {
   try {
-    console.log('📖 创建章节:', req.body)
-    
     const { novelId } = req.params
     
     // 检查小说是否存在
@@ -25,7 +23,6 @@ export const createChapter = async (req, res) => {
     }
     
     const chapter = chapterStorage.create(chapterData)
-    console.log(`✅ 章节创建成功: ${chapter.title}`)
     
     res.status(201).json({
       status: 'success',
@@ -99,7 +96,6 @@ export const getChapterById = async (req, res) => {
 export const updateChapter = async (req, res) => {
   try {
     const chapterId = req.params.id
-    console.log(`📝 更新章节: ID=${chapterId}`, req.body)
     
     const chapter = chapterStorage.update(chapterId, req.body)
     
@@ -109,8 +105,6 @@ export const updateChapter = async (req, res) => {
         message: '章节不存在'
       })
     }
-    
-    console.log(`✅ 章节更新成功: ${chapter.title}`)
     
     res.status(200).json({
       status: 'success',

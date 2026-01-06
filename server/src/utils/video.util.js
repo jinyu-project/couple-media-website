@@ -13,11 +13,9 @@ try {
   const ffmpegPath = execSync('where ffmpeg', { encoding: 'utf-8' }).trim().split('\n')[0]
   if (ffmpegPath && fs.existsSync(ffmpegPath)) {
     ffmpeg.setFfmpegPath(ffmpegPath)
-    console.log(`✅ FFmpeg路径已设置: ${ffmpegPath}`)
   }
 } catch (error) {
   // 如果找不到，fluent-ffmpeg会尝试使用系统PATH中的ffmpeg
-  console.log('ℹ️ 使用系统PATH中的FFmpeg')
 }
 
 /**
@@ -46,8 +44,6 @@ export const extractVideoThumbnail = (videoPath, outputPath = null) => {
       fs.mkdirSync(outputDir, { recursive: true })
     }
 
-    console.log(`🎬 开始提取视频缩略图: ${videoPath}`)
-    console.log(`📸 输出路径: ${outputPath}`)
 
     // 先获取视频信息以确定宽高比
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
@@ -68,11 +64,8 @@ export const extractVideoThumbnail = (videoPath, outputPath = null) => {
       const width = videoStream.width
       const height = videoStream.height
       
-      console.log(`📐 视频尺寸: ${width}x${height}`)
-      
       // 统一使用横版缩略图，尺寸更小（16:9比例）
       const thumbnailSize = '400x225'
-      console.log('🖥️ 使用横版缩略图')
 
       extractThumbnailWithSize(videoPath, outputPath, thumbnailSize, resolve, reject)
     })
@@ -84,7 +77,6 @@ const extractThumbnailWithSize = (videoPath, outputPath, thumbnailSize, resolve,
     const ffmpegInstance = ffmpeg(videoPath)
     
     let stderrOutput = ''
-    let hasError = false
     
     // 添加更多错误处理
     ffmpegInstance
@@ -94,9 +86,6 @@ const extractThumbnailWithSize = (videoPath, outputPath, thumbnailSize, resolve,
         folder: path.dirname(outputPath),
         size: thumbnailSize, // 根据视频方向使用不同尺寸
       })
-      .on('start', (commandLine) => {
-        console.log('FFmpeg命令:', commandLine)
-      })
       .on('end', () => {
         // 等待一小段时间确保文件写入完成
         setTimeout(() => {
@@ -104,7 +93,6 @@ const extractThumbnailWithSize = (videoPath, outputPath, thumbnailSize, resolve,
           if (fs.existsSync(outputPath)) {
             const stats = fs.statSync(outputPath)
             if (stats.size > 0) {
-              console.log(`✅ 视频缩略图提取成功: ${outputPath} (${stats.size} bytes)`)
               resolve(outputPath)
             } else {
               reject(new Error(`缩略图文件为空: ${outputPath}`))
@@ -115,36 +103,11 @@ const extractThumbnailWithSize = (videoPath, outputPath, thumbnailSize, resolve,
         }, 1000) // 等待1秒
       })
       .on('error', (err) => {
-        hasError = true
-        console.error(`❌ 提取视频缩略图失败:`, err.message)
-        console.error('错误详情:', err)
-        console.error('FFmpeg输出:', stderrOutput)
+        console.error('提取视频缩略图失败:', err.message)
         reject(new Error(`FFmpeg错误: ${err.message}. 输出: ${stderrOutput}`))
       })
       .on('stderr', (stderrLine) => {
         stderrOutput += stderrLine + '\n'
-        // 输出FFmpeg的stderr信息（用于调试）
-        if (stderrLine.includes('error') || stderrLine.includes('Error')) {
-          console.warn('FFmpeg警告:', stderrLine.trim())
-        }
       })
-}
-
-/**
- * 检查FFmpeg是否可用
- * @returns {Promise<boolean>}
- */
-export const checkFFmpegAvailable = () => {
-  return new Promise((resolve) => {
-    ffmpeg.getAvailableEncoders((err, encoders) => {
-      if (err) {
-        console.warn('⚠️ FFmpeg可能未安装或不可用:', err.message)
-        resolve(false)
-      } else {
-        console.log('✅ FFmpeg可用')
-        resolve(true)
-      }
-    })
-  })
 }
 

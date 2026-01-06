@@ -5,7 +5,7 @@ import FilePreview from '@/components/file/FilePreview'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, X, FolderPlus, CheckSquare, Square } from 'lucide-react'
+import { Upload, X, FolderPlus, CheckSquare, Square, Trash2 } from 'lucide-react'
 
 export default function Photos() {
   const [showUpload, setShowUpload] = useState(false)
@@ -77,6 +77,65 @@ export default function Photos() {
     setSelectedFiles(selectedIds)
   }
 
+  // 批量删除照片
+  const handleBatchDelete = async () => {
+    if (selectedFiles.length === 0) {
+      alert('请至少选择一张照片')
+      return
+    }
+
+    if (!confirm(`确定要删除选中的 ${selectedFiles.length} 张照片吗？此操作不可恢复。`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let failCount = 0
+
+      // 批量删除
+      for (const fileId of selectedFiles) {
+        try {
+          const response = await fetch(`/api/files/${fileId}`, {
+            method: 'DELETE',
+          })
+          const data = await response.json()
+
+          if (data.status === 'success') {
+            successCount++
+          } else {
+            failCount++
+            console.error(`删除文件 ${fileId} 失败:`, data.message)
+          }
+        } catch (err) {
+          failCount++
+          console.error(`删除文件 ${fileId} 失败:`, err)
+        }
+      }
+
+      // 显示结果
+      if (successCount > 0) {
+        alert(`成功删除 ${successCount} 张照片${failCount > 0 ? `，${failCount} 张删除失败` : ''}`)
+        
+        // 刷新列表
+        setRefreshKey(prev => prev + 1)
+        
+        // 清空选择
+        setSelectedFiles([])
+        setSelectionMode(false)
+        
+        // 如果删除的照片中包含当前预览的照片，关闭预览
+        if (previewFile && selectedFiles.includes(previewFile._id || previewFile.id)) {
+          setPreviewFile(null)
+        }
+      } else {
+        alert(`删除失败，请重试`)
+      }
+    } catch (err) {
+      console.error('批量删除失败:', err)
+      alert('批量删除失败，请稍后重试')
+    }
+  }
+
   // 创建相册集
   const handleCreateAlbum = async () => {
     if (!albumName.trim()) {
@@ -137,13 +196,22 @@ export default function Photos() {
         </div>
         <div className="flex gap-2">
           {selectionMode && selectedFiles.length > 0 && (
-            <Button
-              onClick={() => setShowCreateAlbum(true)}
-              className="bg-gradient-to-r from-primary to-pink-500"
-            >
-              <FolderPlus className="h-4 w-4 mr-2" />
-              创建相册集 ({selectedFiles.length})
-            </Button>
+            <>
+              <Button
+                variant="destructive"
+                onClick={handleBatchDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                批量删除 ({selectedFiles.length})
+              </Button>
+              <Button
+                onClick={() => setShowCreateAlbum(true)}
+                className="bg-gradient-to-r from-primary to-pink-500"
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                创建相册集 ({selectedFiles.length})
+              </Button>
+            </>
           )}
           <Button
             variant={selectionMode ? 'default' : 'outline'}

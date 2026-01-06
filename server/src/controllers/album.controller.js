@@ -3,7 +3,6 @@ import { albumStorage, fileStorage } from '../utils/storage.util.js'
 // 创建相册
 export const createAlbum = async (req, res) => {
   try {
-    console.log('📁 创建相册:', req.body)
     
     const albumData = {
       name: req.body.name || '未命名相册',
@@ -15,7 +14,6 @@ export const createAlbum = async (req, res) => {
     }
     
     const album = albumStorage.create(albumData)
-    console.log(`✅ 相册创建成功: ${album.name}`)
     
     res.status(201).json({
       status: 'success',
@@ -186,7 +184,6 @@ export const addFileToAlbum = async (req, res) => {
       })
     }
     
-    console.log(`➕ 添加文件 ${fileId} 到相册 ${albumId}`)
     
     const album = albumStorage.findById(albumId)
     if (!album) {
@@ -214,9 +211,7 @@ export const addFileToAlbum = async (req, res) => {
     if (!isAlreadyInAlbum) {
       album.files.push(fileId)
       albumStorage.update(albumId, { files: album.files })
-      console.log(`✅ 文件添加成功，相册中现在有 ${album.files.length} 个文件`)
-    } else {
-      console.log(`⚠️ 文件已在相册中，跳过添加`)
+      } else {
     }
     
     // 更新文件的albumId
@@ -242,7 +237,6 @@ export const removeFileFromAlbum = async (req, res) => {
     const { fileId } = req.params
     const albumId = req.params.id
     
-    console.log(`🗑️ 从相册 ${albumId} 移除文件 ${fileId}`)
     
     const album = albumStorage.findById(albumId)
     if (!album) {
@@ -267,7 +261,6 @@ export const removeFileFromAlbum = async (req, res) => {
       fileStorage.update(fileId, { albumId: null })
     }
     
-    console.log(`✅ 文件移除成功，相册中剩余 ${album.files.length} 个文件`)
     
     res.status(200).json({
       status: 'success',

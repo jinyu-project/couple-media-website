@@ -4,8 +4,6 @@ import { getFileUrl } from '../utils/file.util.js'
 // 创建小说
 export const createNovel = async (req, res) => {
   try {
-    console.log('📚 创建小说:', req.body)
-    
     const novelData = {
       title: req.body.title || '未命名小说',
       description: req.body.description || '',
@@ -16,7 +14,6 @@ export const createNovel = async (req, res) => {
     }
     
     const novel = novelStorage.create(novelData)
-    console.log(`✅ 小说创建成功: ${novel.title}`)
     
     res.status(201).json({
       status: 'success',
@@ -110,13 +107,10 @@ export const getNovelById = async (req, res) => {
 export const updateNovel = async (req, res) => {
   try {
     const novelId = req.params.id
-    console.log(`📝 更新小说信息: ID=${novelId}`, req.body)
-    console.log(`📝 当前所有小说:`, novelStorage.findAll().map(n => ({ id: n.id, title: n.title })))
     
     // 先检查小说是否存在
     const existingNovel = novelStorage.findById(novelId)
     if (!existingNovel) {
-      console.log(`❌ 小说不存在: ID=${novelId}`)
       return res.status(404).json({
         status: 'error',
         message: '小说不存在'
@@ -126,14 +120,11 @@ export const updateNovel = async (req, res) => {
     const novel = novelStorage.update(novelId, req.body)
     
     if (!novel) {
-      console.log(`❌ 更新失败: ID=${novelId}`)
       return res.status(404).json({
         status: 'error',
         message: '小说不存在'
       })
     }
-    
-    console.log(`✅ 小说信息更新成功: ${novel.title}`)
     
     res.status(200).json({
       status: 'success',

@@ -133,15 +133,12 @@ export default function ChapterEdit() {
   const fetchChapter = async () => {
     const chapterId = id || chapterIdRef.current
     if (!chapterId || chapterId === 'new') {
-      console.log('跳过获取章节信息，章节ID无效:', chapterId)
       return
     }
     try {
       setLoading(true)
-      console.log('获取章节信息，ID:', chapterId)
       const response = await fetch(`/api/novels/${novelId}/chapters/${chapterId}`)
       const data = await response.json()
-      console.log('获取章节信息响应:', data)
       if (data.status === 'success' && data.data.chapter) {
         const chapter = data.data.chapter
         setFormData({
@@ -179,8 +176,6 @@ export default function ChapterEdit() {
         ? `/api/novels/${novelId}/chapters` 
         : `/api/novels/${novelId}/chapters/${currentChapterId}`
       const method = isNew ? 'POST' : 'PUT'
-      
-      console.log('自动保存 - URL:', url, 'method:', method, 'isNew:', isNew, 'currentChapterId:', currentChapterId)
 
       const response = await fetch(url, {
         method,
@@ -191,7 +186,6 @@ export default function ChapterEdit() {
       })
 
       const data = await response.json()
-      console.log('自动保存响应:', data)
       if (data.status === 'success') {
         // 如果是新章节，更新URL中的ID和引用
         if (isNew && data.data.chapter) {
@@ -223,7 +217,6 @@ export default function ChapterEdit() {
 
     try {
       setSaving(true)
-      console.log('手动保存 - id:', id, 'isNew:', isNew, 'novelId:', novelId)
 
       const chapterData = {
         ...formData,
@@ -235,8 +228,6 @@ export default function ChapterEdit() {
         ? `/api/novels/${novelId}/chapters` 
         : `/api/novels/${novelId}/chapters/${currentChapterId}`
       const method = isNew ? 'POST' : 'PUT'
-      
-      console.log('手动保存 - URL:', url, 'method:', method, 'currentChapterId:', currentChapterId)
 
       const response = await fetch(url, {
         method,
@@ -247,7 +238,6 @@ export default function ChapterEdit() {
       })
 
       const data = await response.json()
-      console.log('手动保存响应:', data)
       if (data.status === 'success') {
         const chapterId = isNew ? data.data.chapter.id : currentChapterId
         if (!chapterId) {
